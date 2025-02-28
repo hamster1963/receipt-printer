@@ -25,7 +25,6 @@ export default function ReceiptPrinter() {
   const [inputText, setInputText] = useState("")
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [isPrinting, setIsPrinting] = useState(false)
-  const [cursorPosition, setCursorPosition] = useState({top: 3, left: 3}) // 光标位置状态
   const receiptContainerRef = useRef<HTMLDivElement>(null)
   const printIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null) // 添加textarea引用
@@ -68,20 +67,47 @@ export default function ReceiptPrinter() {
 
     // 将输入文本分割成行
     const lines = inputText.split("\n").filter((line) => line.trim() !== "")
+    
+    // 长行自动换行处理（每行最多30个字符）
+    const formattedLines = lines.flatMap(line => {
+      const maxCharsPerLine = 30;
+      if (line.length <= maxCharsPerLine) return [line];
+      
+      // 将长文本分割成多行
+      const chunks = [];
+      for (let i = 0; i < line.length; i += maxCharsPerLine) {
+        chunks.push(line.substring(i, i + maxCharsPerLine));
+      }
+      return chunks;
+    });
 
     // 清空输入框
     setInputText("")
     
     // 请求API获取额外内容
     const apiContent = await fetchReceiptContent(inputText);
-    const apiLines = apiContent ? apiContent.split('\n') : [];
+    let apiLines: string[] = [];
+    
+    if (apiContent) {
+      // 对API返回内容也进行换行处理
+      apiLines = apiContent.split('\n').flatMap(line => {
+        const maxCharsPerLine = 30;
+        if (line.length <= maxCharsPerLine) return [line];
+        
+        const chunks = [];
+        for (let i = 0; i < line.length; i += maxCharsPerLine) {
+          chunks.push(line.substring(i, i + maxCharsPerLine));
+        }
+        return chunks;
+      });
+    }
 
     // 准备新的小票内容模板
     const newReceiptTemplate = [
       "收据",
       new Date().toLocaleString(),
       "------------------------",
-      ...lines,
+      ...formattedLines,
       "------------------------",
       ...(apiLines.length > 0 ? [...apiLines, "------------------------"] : []),
       "谢谢惠顾",
@@ -144,81 +170,32 @@ export default function ReceiptPrinter() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handlePrint()
-    } else {
-      // 对于其他键，等待处理后更新光标位置
-      setTimeout(updateCursorPosition, 0);
     }
   }
-
-  // 计算光标位置的函数
-  const updateCursorPosition = () => {
-    if (!textareaRef.current) return;
-    
-    const textarea = textareaRef.current;
-    const selectionStart = textarea.selectionStart || 0;
-
-    // 创建一个临时元素来计算文本尺寸
-    const textMeasure = document.createElement('div');
-    textMeasure.style.font = window.getComputedStyle(textarea).font;
-    textMeasure.style.position = 'absolute';
-    textMeasure.style.visibility = 'hidden';
-    textMeasure.style.whiteSpace = 'pre-wrap';
-    textMeasure.style.wordWrap = 'break-word';
-    textMeasure.style.width = `${textarea.clientWidth - 20}px`; // 减去padding
-    
-    // 获取光标前的文本
-    const textBeforeCursor = inputText.substring(0, selectionStart);
-    
-    // 创建行元素
-    textMeasure.textContent = textBeforeCursor;
-    document.body.appendChild(textMeasure);
-    
-    // 计算光标位置
-    const textHeight = textMeasure.clientHeight;
-    const lines = textBeforeCursor.split('\n');
-    const lastLine = lines[lines.length - 1];
-    
-    // 如果在最后一行的最后位置，使用文本测量的宽度
-    textMeasure.textContent = lastLine;
-    const lastLineWidth = textMeasure.clientWidth;
-    
-    document.body.removeChild(textMeasure);
-    
-    // 计算光标的top和left位置
-    // 基本padding为3，每行高度大约是字体大小的1.5倍
-    const lineHeight = 1.5 * parseFloat(window.getComputedStyle(textarea).fontSize);
-    const linesBeforeCursor = textBeforeCursor.split('\n').length - 1;
-    
-    // 设置光标位置
-    setCursorPosition({
-      top: 3 + linesBeforeCursor * lineHeight,
-      left: lastLine.length === 0 ? 3 : 3 + lastLineWidth
-    });
-  };
 
   // 处理输入变化
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
-    // 在下一个微任务中更新光标位置，确保DOM已更新
-    setTimeout(updateCursorPosition, 0);
   };
 
-  // 处理鼠标点击或键盘导航
-  const handleSelectionChange = () => {
-    updateCursorPosition();
-  };
 
   // 确保滚动到最新的小票
   useEffect(() => {
     const scrollToBottom = () => {
       if (receiptContainerRef.current) {
-        receiptContainerRef.current.scrollTop = receiptContainerRef.current.scrollHeight
+        // 增加延迟以确保内容完全渲染
+        setTimeout(() => {
+          receiptContainerRef.current!.scrollTop = receiptContainerRef.current!.scrollHeight
+        }, 50);
       }
     }
 
-    const timeoutId = setTimeout(scrollToBottom, 10)
-    return () => clearTimeout(timeoutId)
-  }, [receipts])
+    scrollToBottom();
+    
+    // 打印完成后再次滚动确保"谢谢惠顾"可见
+    const timeoutId = setTimeout(scrollToBottom, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [receipts]);
 
   // 清理定时器
   useEffect(() => {
@@ -229,19 +206,6 @@ export default function ReceiptPrinter() {
     }
   }, [])
 
-  // 组件挂载和输入文本变化时更新光标位置
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.addEventListener('click', handleSelectionChange);
-      textarea.addEventListener('keyup', handleSelectionChange);
-      
-      return () => {
-        textarea.removeEventListener('click', handleSelectionChange);
-        textarea.removeEventListener('keyup', handleSelectionChange);
-      };
-    }
-  }, []);
 
   // 获取小票的CSS类名
   const getReceiptClassName = (status: Receipt['status']) => {
@@ -255,21 +219,21 @@ export default function ReceiptPrinter() {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-100 overflow-hidden">
       <div className="relative w-full max-w-md h-screen flex flex-col items-center justify-end pb-4">
-        {/* 小票展示区域 */}
+        {/* 小票展示区域 - 增加底部间距 */}
         <div
           ref={receiptContainerRef}
-          className="absolute inset-0 bottom-[220px] w-full overflow-y-auto flex flex-col items-center"
+          className="absolute inset-0 bottom-[230px] w-full overflow-y-auto flex flex-col items-center"
           style={{
             maskImage: "linear-gradient(to top, black 90%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to top, black 90%, transparent 100%)",
           }}
         >
-          <div className="w-full flex flex-col items-center justify-end min-h-full pb-2">
+          <div className="w-full flex flex-col items-center justify-end min-h-full pb-10"> {/* 增加底部内边距 */}
             {/* 所有小票列表 */}
             {receipts.map((receipt) => (
               <div
                 key={receipt.id}
-                className={`w-4/5 bg-[#fffdf8] shadow-md mb-0 font-mono text-sm relative ${getReceiptClassName(receipt.status)}`}
+                className={`w-4/5 bg-[#fffdf8] shadow-md font-mono text-sm relative ${getReceiptClassName(receipt.status)}`}
                 style={{
                   boxShadow: "0 2px 6px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.05)",
                   backgroundImage: "radial-gradient(rgba(0,0,0,0.02) 1px, transparent 1px)",
@@ -286,12 +250,12 @@ export default function ReceiptPrinter() {
                 <div className="h-1 w-full bg-gradient-to-b from-orange-50 to-transparent"></div>
 
                 {/* 小票内容 */}
-                <div className="p-4 whitespace-pre-line">
+                <div className="p-4 whitespace-pre-wrap break-words w-full">
                   {receipt.content.map((line, lineIndex) => {
                     // 检测是否是标题行（第一行）
                     if (lineIndex === 0) {
                       return (
-                        <div key={`${receipt.id}-${lineIndex}`} className="text-center font-bold text-lg mb-2">
+                        <div key={`${receipt.id}-${lineIndex}`} className="text-center font-bold text-lg mb-2 overflow-hidden text-ellipsis">
                           {line}
                         </div>
                       );
@@ -299,7 +263,7 @@ export default function ReceiptPrinter() {
                     // 检测是否是日期行（第二行）
                     else if (lineIndex === 1) {
                       return (
-                        <div key={`${receipt.id}-${lineIndex}`} className="text-center text-xs text-gray-600 mb-2">
+                        <div key={`${receipt.id}-${lineIndex}`} className="text-center text-xs text-gray-600 mb-2 overflow-hidden text-ellipsis">
                           {line}
                         </div>
                       );
@@ -313,7 +277,7 @@ export default function ReceiptPrinter() {
                     // 检测是否是谢谢惠顾行
                     else if (line.includes("谢谢惠顾")) {
                       return (
-                        <div key={`${receipt.id}-${lineIndex}`} className="text-center font-medium mt-2">
+                        <div key={`${receipt.id}-${lineIndex}`} className="text-center font-medium mt-2 overflow-hidden text-ellipsis">
                           {line}
                         </div>
                       );
@@ -321,7 +285,7 @@ export default function ReceiptPrinter() {
                     // 检测是否是星号行（最后一行）
                     else if (line.includes("*")) {
                       return (
-                        <div key={`${receipt.id}-${lineIndex}`} className="text-center text-gray-400 text-xs mt-1">
+                        <div key={`${receipt.id}-${lineIndex}`} className="text-center text-gray-400 text-xs mt-1 overflow-hidden text-ellipsis">
                           {line}
                         </div>
                       );
@@ -329,7 +293,7 @@ export default function ReceiptPrinter() {
                     // 普通内容行
                     else {
                       return (
-                        <div key={`${receipt.id}-${lineIndex}`} className="mb-1 text-center text-gray-800">
+                        <div key={`${receipt.id}-${lineIndex}`} className="mb-1 text-gray-800 break-words">
                           {line}
                         </div>
                       );
@@ -399,38 +363,24 @@ export default function ReceiptPrinter() {
                   value={inputText}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  onClick={handleSelectionChange}
                   placeholder="在此输入文本，按回车键打印..."
                   className="w-full h-20 p-3 bg-[#efefef] placeholder:text-gray-500 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner"
                   style={{
-                    caretColor: "transparent", // 隐藏原生光标
                     letterSpacing: "0.5px"
                   }}
                   disabled={isPrinting}
                 />
                 
-                {/* 自定义闪烁光标 */}
-                {!isPrinting && (
-                  <div 
-                    className="absolute w-[2px] h-4 bg-gray-800 opacity-70 animate-[blink_1s_step-end_infinite] pointer-events-none"
-                    style={{
-                      top: `${cursorPosition.top}px`,
-                      left: `${cursorPosition.left}px`,
-                      transition: "left 0.05s ease-out, top 0.05s ease-out"
-                    }}
-                  />
-                )}
-              </div>
-              
-              {/* 输入框底部控制按钮装饰 */}
-              <div className="flex justify-between items-center mt-1 px-1">
-                <div className="flex space-x-1">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                  ))}
-                </div>
-                <div className="text-[10px] font-mono text-gray-500 tracking-tighter">
-                  {isPrinting ? "PRINTING..." : "READY"}
+                {/* 输入框底部控制按钮装饰 */}
+                <div className="flex justify-between items-center mt-1 px-1">
+                  <div className="flex space-x-1">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                    ))}
+                  </div>
+                  <div className="text-[10px] font-mono text-gray-500 tracking-tighter">
+                    {isPrinting ? "PRINTING..." : "READY"}
+                  </div>
                 </div>
               </div>
             </div>

@@ -118,3 +118,28 @@
   }
 }
 
+/* 小票相关样式 */
+.receipt-printing, .receipt-finishing, .receipt-complete {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* 确保小票内容不超出 */
+.receipt-printing > div, 
+.receipt-finishing > div,
+.receipt-complete > div {
+  max-width: 100%;
+}
+
+/* 添加小票完成打印过渡效果 */
+.receipt-finishing {
+  transition: transform 0.8s ease-out;
+  transform: translateY(-10px);
+}
+
+.receipt-complete {
+  transform: translateY(-20px);
+  transition: transform 0.5s ease-out;
+}
+
