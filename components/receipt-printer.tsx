@@ -312,19 +312,34 @@ export default function ReceiptPrinter() {
             <button
               type="button"
               disabled={isPrinting || !inputText.trim()}
-              className="flex min-h-[32px] min-w-[64px] cursor-pointer items-center justify-center overflow-hidden rounded-full bg-green-600 px-3 py-1 font-medium text-white text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all hover:bg-green-600/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-green-600"
+              className="relative flex min-h-[40px] min-w-[80px] cursor-pointer items-center justify-center overflow-hidden rounded-sm bg-gradient-to-b from-red-700 to-red-900 px-4 py-2 font-medium text-white text-sm border border-red-900/50 transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-red-700 disabled:hover:to-red-900"
               onClick={handlePrint}
+              style={{
+                boxShadow: isPrinting 
+                  ? 'inset 0 2px 4px rgba(0,0,0,0.4)' 
+                  : '0 2px 0 #7f1d1d, 0 3px 5px rgba(0,0,0,0.3)',
+                transform: isPrinting ? 'translateY(2px)' : 'none'
+              }}
             >
-              <div className="[text-shadow:_0_1px_0_rgb(0_0_0_/_20%)] flex items-center gap-1">
+              <div className="flex items-center gap-2 font-mono tracking-wide" style={{ textShadow: '0 1px 1px rgba(0,0,0,0.5)' }}>
                 {isPrinting ? (
                   <>
                     <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                     <span>打印中...</span>
                   </>
                 ) : (
-                  '打印'
+                  <>
+                    <Printer size={16} className="text-white" />
+                    <span>打印</span>
+                  </>
                 )}
               </div>
+              {/* 按钮顶部高光效果 */}
+              <div className="absolute inset-0 bg-gradient-to-b from-white to-transparent opacity-10 pointer-events-none"></div>
+              {/* 按钮表面纹理 */}
+              <div className="absolute inset-0 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px] opacity-5 pointer-events-none"></div>
+              {/* 按钮底部阴影 */}
+              <div className="absolute inset-x-0 bottom-0 h-1 bg-black opacity-20 pointer-events-none"></div>
             </button>
           </div>
         </div>
