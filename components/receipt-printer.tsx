@@ -5,23 +5,27 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Printer } from "lucide-react"
 
+// 创建小票类型
+type Receipt = {
+  id: string;
+  content: string[];
+  status: 'printing' | 'transitioning' | 'complete';
+}
+
 export default function ReceiptPrinter() {
   const [inputText, setInputText] = useState("")
-  const [receipts, setReceipts] = useState<Array<{id: string, content: string[]}>>([]); // 修改数据结构，包含id
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [isPrinting, setIsPrinting] = useState(false)
-  const [currentPrintingReceipt, setCurrentPrintingReceipt] = useState<string[]>([])
-  const [isTransitioning, setIsTransitioning] = useState(false)
   const receiptContainerRef = useRef<HTMLDivElement>(null)
-  const currentReceiptId = useRef<string>("")
+  const printIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // 处理打印
   const handlePrint = () => {
     if (!inputText.trim() || isPrinting) return
 
     setIsPrinting(true)
-    // 生成一个唯一ID，并保存在ref中
+    // 生成一个唯一ID
     const receiptId = `receipt-${Date.now()}`
-    currentReceiptId.current = receiptId
 
     // 将输入文本分割成行
     const lines = inputText.split("\n").filter((line) => line.trim() !== "")
@@ -29,8 +33,8 @@ export default function ReceiptPrinter() {
     // 清空输入框
     setInputText("")
 
-    // 准备新的小票内容
-    const newReceipt = [
+    // 准备新的小票内容模板
+    const newReceiptTemplate = [
       "收据",
       new Date().toLocaleString(),
       "------------------------",
@@ -40,37 +44,53 @@ export default function ReceiptPrinter() {
       "* * * * *",
     ]
 
-    // 逐行打印效果
-    let currentLines: string[] = []
-    let lineIndex = 0
+    // 创建新小票对象并添加到列表
+    setReceipts(prev => [...prev, {
+      id: receiptId,
+      content: [], // 初始为空
+      status: 'printing'
+    }])
 
-    const printInterval = setInterval(() => {
-      if (lineIndex < newReceipt.length) {
-        currentLines = [...currentLines, newReceipt[lineIndex]]
-        setCurrentPrintingReceipt([...currentLines])
+    // 逐行打印效果
+    let lineIndex = 0
+    let currentLines: string[] = []
+
+    printIntervalRef.current = setInterval(() => {
+      if (lineIndex < newReceiptTemplate.length) {
+        // 添加新行
+        currentLines = [...currentLines, newReceiptTemplate[lineIndex]]
         lineIndex++
+        
+        // 更新特定小票的内容
+        setReceipts(prev => prev.map(receipt => 
+          receipt.id === receiptId 
+            ? { ...receipt, content: [...currentLines] } 
+            : receipt
+        ))
       } else {
-        // 打印完成流程
-        clearInterval(printInterval)
+        // 打印完成
+        if (printIntervalRef.current) {
+          clearInterval(printIntervalRef.current)
+          printIntervalRef.current = null
+        }
         
-        // 标记开始过渡
-        setIsTransitioning(true)
+        // 先将状态改为过渡中
+        setReceipts(prev => prev.map(receipt => 
+          receipt.id === receiptId 
+            ? { ...receipt, status: 'transitioning' } 
+            : receipt
+        ))
         
-        // 添加完整打印的小票到列表，使用深拷贝避免引用问题
-        const completedReceipt = [...currentLines]
-        
-        // 延迟清空当前打印内容，等待过渡动画完成
+        // 延迟后改为完成状态
         setTimeout(() => {
-          // 先将当前小票添加到历史记录中，使用唯一ID
-          setReceipts(prev => [...prev, { id: receiptId, content: completedReceipt }])
+          setReceipts(prev => prev.map(receipt => 
+            receipt.id === receiptId 
+              ? { ...receipt, status: 'complete' } 
+              : receipt
+          ))
           
-          // 再延迟清空当前打印内容
-          setTimeout(() => {
-            setCurrentPrintingReceipt([])
-            setIsPrinting(false)
-            setIsTransitioning(false)
-          }, 500) // 增加延迟时间，确保动画完成
-        }, 600) // 增加延迟时间，确保过渡效果完成
+          setIsPrinting(false)
+        }, 800) // 给足够的过渡时间
       }
     }, 200) // 每行打印间隔时间
   }
@@ -83,7 +103,7 @@ export default function ReceiptPrinter() {
     }
   }
 
-  // 确保滚动到最新的小票，使用防抖处理
+  // 确保滚动到最新的小票
   useEffect(() => {
     const scrollToBottom = () => {
       if (receiptContainerRef.current) {
@@ -91,10 +111,27 @@ export default function ReceiptPrinter() {
       }
     }
 
-    // 添加延时，确保DOM已更新
     const timeoutId = setTimeout(scrollToBottom, 10)
     return () => clearTimeout(timeoutId)
-  }, [receipts, currentPrintingReceipt])
+  }, [receipts])
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (printIntervalRef.current) {
+        clearInterval(printIntervalRef.current)
+      }
+    }
+  }, [])
+
+  // 获取小票的CSS类名
+  const getReceiptClassName = (status: Receipt['status']) => {
+    switch (status) {
+      case 'printing': return 'receipt-printing';
+      case 'transitioning': return 'receipt-finishing';
+      case 'complete': return 'receipt-complete';
+    }
+  }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-100 overflow-hidden">
@@ -109,11 +146,11 @@ export default function ReceiptPrinter() {
           }}
         >
           <div className="w-full flex flex-col items-center justify-end min-h-full pb-2">
-            {/* 已打印的小票列表 */}
+            {/* 所有小票列表 - 不再区分当前打印和已打印 */}
             {receipts.map((receipt) => (
               <div
-                key={receipt.id} // 使用稳定的唯一ID
-                className="w-4/5 bg-white shadow-md mb-0 font-mono text-sm receipt-complete"
+                key={receipt.id}
+                className={`w-4/5 bg-white shadow-md mb-0 font-mono text-sm ${getReceiptClassName(receipt.status)}`}
               >
                 <div className="p-4 whitespace-pre-line">
                   {receipt.content.map((line, lineIndex) => (
@@ -128,28 +165,6 @@ export default function ReceiptPrinter() {
                 </div>
               </div>
             ))}
-
-            {/* 当前正在打印的小票 */}
-            {currentPrintingReceipt.length > 0 && (
-              <div 
-                key={currentReceiptId.current} // 使用当前receiptId ref
-                className={`w-4/5 bg-white shadow-md mb-0 font-mono text-sm ${
-                  isTransitioning ? "receipt-finishing" : "receipt-printing"
-                }`}
-              >
-                <div className="p-4 whitespace-pre-line">
-                  {currentPrintingReceipt.map((line, index) => (
-                    <div key={`${currentReceiptId.current}-${index}`} className="mb-1 text-center">
-                      {line}
-                    </div>
-                  ))}
-                </div>
-                {/* 小票底部的虚线 */}
-                <div className="w-full border-b border-dashed border-gray-400 relative">
-                  <div className="absolute -right-1 -top-2 text-gray-400 text-xs">✂</div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
