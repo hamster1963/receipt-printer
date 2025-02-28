@@ -132,14 +132,15 @@
   max-width: 100%;
 }
 
-/* 添加小票完成打印过渡效果 */
-.receipt-finishing {
-  transition: transform 0.8s ease-out;
-  transform: translateY(-10px);
+/* 确保所有文本居中 */
+textarea::placeholder {
+  text-align: center;
+  line-height: 40px;
 }
 
-.receipt-complete {
-  transform: translateY(-20px);
-  transition: transform 0.5s ease-out;
+.receipt-printing p, 
+.receipt-finishing p,
+.receipt-complete p {
+  text-align: center;
 }
 

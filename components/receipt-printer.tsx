@@ -290,10 +290,10 @@ export default function ReceiptPrinter() {
                         </div>
                       );
                     }
-                    // 普通内容行
+                    // 普通内容行 - 增加text-center类
                     else {
                       return (
-                        <div key={`${receipt.id}-${lineIndex}`} className="mb-1 text-gray-800 break-words">
+                        <div key={`${receipt.id}-${lineIndex}`} className="mb-1 text-center text-gray-800 break-words">
                           {line}
                         </div>
                       );
@@ -364,7 +364,7 @@ export default function ReceiptPrinter() {
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="在此输入文本，按回车键打印..."
-                  className="w-full h-20 p-3 bg-[#efefef] placeholder:text-gray-500 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner"
+                  className="w-full h-20 p-3 bg-[#efefef] placeholder:text-gray-500 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner text-center"
                   style={{
                     letterSpacing: "0.5px"
                   }}
