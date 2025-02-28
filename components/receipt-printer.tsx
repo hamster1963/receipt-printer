@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { Printer } from "lucide-react"
+import { Loader } from "./loader-spin"
 
 // 创建小票类型
 type Receipt = {
@@ -194,17 +195,26 @@ export default function ReceiptPrinter() {
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="在此输入文本，按回车键打印..."
-            className="w-full h-24 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
+            className="w-full h-20 p-3 border placeholder:text-sm border-gray-300 rounded-md focus:outline-none resize-none font-mono"
             disabled={isPrinting}
           />
           <div className="flex justify-end mt-2">
-            <button
-              onClick={handlePrint}
-              disabled={isPrinting || !inputText.trim()}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isPrinting ? "打印中..." : "打印"}
-            </button>
+          <button
+                    type="button"
+                    disabled={isPrinting || !inputText.trim()}
+                    className="flex min-h-[24px] min-w-[40px] cursor-pointer items-center justify-center overflow-hidden rounded-full bg-green-600 px-2 py-1 font-medium text-white text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-colors hover:bg-green-600/80 hover:shadow-[inset_0_1px_0_rgba(0,0,0,0.2)]"
+                    onClick={handlePrint}
+                  >
+                      <div
+                        className="[text-shadow:_0_1px_0_rgb(0_0_0_/_20%)]"
+                      >
+                        {isPrinting ? (
+                          "打印中..."
+                        ) : (
+                          '打印'
+                        )}
+                      </div>
+                  </button>
           </div>
         </div>
       </div>
