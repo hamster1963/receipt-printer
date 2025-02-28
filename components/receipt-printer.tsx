@@ -4,13 +4,21 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { Printer } from "lucide-react"
-import { Loader } from "./loader-spin"
 
 // 创建小票类型
 type Receipt = {
   id: string;
   content: string[];
   status: 'printing' | 'transitioning' | 'complete';
+}
+
+// API 响应类型
+type ApiResponse = {
+  status: number;
+  msg: string;
+  data: {
+    Content: string;
+  };
 }
 
 export default function ReceiptPrinter() {
@@ -20,8 +28,36 @@ export default function ReceiptPrinter() {
   const receiptContainerRef = useRef<HTMLDivElement>(null)
   const printIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  // 请求API获取内容
+  const fetchReceiptContent = async (content: string): Promise<string | null> => {
+    try {
+      const response = await fetch('https://blog-api.nosion.ac.cn/api/v1/single/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('API请求失败');
+      }
+      
+      const data: ApiResponse = await response.json();
+      
+      if (data.status === 200 && data.data?.Content) {
+        return data.data.Content;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('获取API内容时出错:', error);
+      return null;
+    }
+  }
+
   // 处理打印
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!inputText.trim() || isPrinting) return
 
     setIsPrinting(true)
@@ -33,6 +69,10 @@ export default function ReceiptPrinter() {
 
     // 清空输入框
     setInputText("")
+    
+    // 请求API获取额外内容
+    const apiContent = await fetchReceiptContent(inputText);
+    const apiLines = apiContent ? apiContent.split('\n') : [];
 
     // 准备新的小票内容模板
     const newReceiptTemplate = [
@@ -41,6 +81,7 @@ export default function ReceiptPrinter() {
       "------------------------",
       ...lines,
       "------------------------",
+      ...(apiLines.length > 0 ? [...apiLines, "------------------------"] : []),
       "谢谢惠顾",
       "* * * * *",
     ]
