@@ -217,18 +217,18 @@ export default function ReceiptPrinter() {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-100 overflow-hidden">
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-100">
       <div className="relative w-full max-w-md h-screen flex flex-col items-center justify-end pb-4">
-        {/* 小票展示区域 - 增加底部间距 */}
+        {/* 小票展示区域 - 增加底部间距并隐藏滚动条 */}
         <div
           ref={receiptContainerRef}
-          className="absolute inset-0 bottom-[230px] w-full overflow-y-auto flex flex-col items-center"
+          className="absolute inset-0 bottom-[230px] w-full overflow-y-auto flex flex-col items-center hide-scrollbar"
           style={{
             maskImage: "linear-gradient(to top, black 90%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to top, black 90%, transparent 100%)",
           }}
         >
-          <div className="w-full flex flex-col items-center justify-end min-h-full pb-10"> {/* 增加底部内边距 */}
+          <div className="w-full overflow-scroll hide-scrollbar flex flex-col items-center justify-end min-h-full pb-10">
             {/* 所有小票列表 */}
             {receipts.map((receipt) => (
               <div
