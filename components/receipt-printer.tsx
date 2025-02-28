@@ -300,15 +300,52 @@ export default function ReceiptPrinter() {
 
         {/* 输入区域 - 固定在打印机下方 */}
         <div className="w-full bg-gradient-to-b from-white to-gray-50 rounded-b-lg shadow-md p-4 z-10">
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="在此输入文本，按回车键打印..."
-            className="w-full h-20 p-3 border placeholder:text-sm border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 resize-none font-mono transition-all"
-            disabled={isPrinting}
-          />
-          <div className="flex justify-end mt-2">
+          <div className="relative">
+            {/* 输入框标签 */}
+            <div className="absolute -top-2 left-3 px-1 bg-gray-100 text-xs text-gray-500 font-mono z-10">
+              <span>INPUT</span>
+            </div>
+            
+            {/* 输入框外壳 */}
+            <div className="relative border-2 border-gray-400 rounded-md p-1 bg-gray-200 shadow-inner">
+              {/* 仿CRT屏幕效果 */}
+              <div className="absolute inset-0 rounded-sm overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px)] bg-[length:100%_3px] pointer-events-none"></div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)] pointer-events-none"></div>
+              </div>
+              
+              {/* 输入框 */}
+              <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="在此输入文本，按回车键打印..."
+                className="w-full h-20 p-3 bg-[#efefef] placeholder:text-gray-500 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner"
+                style={{
+                  caretColor: "#333",
+                  letterSpacing: "0.5px"
+                }}
+                disabled={isPrinting}
+              />
+            
+              {/* 闪烁的光标提示（仅在未输入且未禁用时显示） */}
+              {!inputText && !isPrinting && (
+                <div className="absolute left-3 top-3 w-2 h-4 bg-gray-700 opacity-70 animate-[blink_1s_step-end_infinite]"></div>
+              )}
+              
+              {/* 输入框底部控制按钮装饰 */}
+              <div className="flex justify-between items-center mt-1 px-1">
+                <div className="flex space-x-1">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                  ))}
+                </div>
+                <div className="text-[10px] font-mono text-gray-500 tracking-tighter">READY</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-4">
             <button
               type="button"
               disabled={isPrinting || !inputText.trim()}

@@ -107,3 +107,14 @@
   background-color: rgba(0, 0, 0, 0.2);
 }
 
+/* 可以添加在现有CSS文件的末尾 */
+
+@keyframes blink {
+  from, to {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
