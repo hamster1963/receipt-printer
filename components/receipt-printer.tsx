@@ -25,8 +25,10 @@ export default function ReceiptPrinter() {
   const [inputText, setInputText] = useState("")
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [isPrinting, setIsPrinting] = useState(false)
+  const [cursorPosition, setCursorPosition] = useState({top: 3, left: 3}) // 光标位置状态
   const receiptContainerRef = useRef<HTMLDivElement>(null)
   const printIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null) // 添加textarea引用
 
   // 请求API获取内容
   const fetchReceiptContent = async (content: string): Promise<string | null> => {
@@ -142,8 +144,69 @@ export default function ReceiptPrinter() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handlePrint()
+    } else {
+      // 对于其他键，等待处理后更新光标位置
+      setTimeout(updateCursorPosition, 0);
     }
   }
+
+  // 计算光标位置的函数
+  const updateCursorPosition = () => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
+    const selectionStart = textarea.selectionStart || 0;
+
+    // 创建一个临时元素来计算文本尺寸
+    const textMeasure = document.createElement('div');
+    textMeasure.style.font = window.getComputedStyle(textarea).font;
+    textMeasure.style.position = 'absolute';
+    textMeasure.style.visibility = 'hidden';
+    textMeasure.style.whiteSpace = 'pre-wrap';
+    textMeasure.style.wordWrap = 'break-word';
+    textMeasure.style.width = `${textarea.clientWidth - 20}px`; // 减去padding
+    
+    // 获取光标前的文本
+    const textBeforeCursor = inputText.substring(0, selectionStart);
+    
+    // 创建行元素
+    textMeasure.textContent = textBeforeCursor;
+    document.body.appendChild(textMeasure);
+    
+    // 计算光标位置
+    const textHeight = textMeasure.clientHeight;
+    const lines = textBeforeCursor.split('\n');
+    const lastLine = lines[lines.length - 1];
+    
+    // 如果在最后一行的最后位置，使用文本测量的宽度
+    textMeasure.textContent = lastLine;
+    const lastLineWidth = textMeasure.clientWidth;
+    
+    document.body.removeChild(textMeasure);
+    
+    // 计算光标的top和left位置
+    // 基本padding为3，每行高度大约是字体大小的1.5倍
+    const lineHeight = 1.5 * parseFloat(window.getComputedStyle(textarea).fontSize);
+    const linesBeforeCursor = textBeforeCursor.split('\n').length - 1;
+    
+    // 设置光标位置
+    setCursorPosition({
+      top: 3 + linesBeforeCursor * lineHeight,
+      left: lastLine.length === 0 ? 3 : 3 + lastLineWidth
+    });
+  };
+
+  // 处理输入变化
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    // 在下一个微任务中更新光标位置，确保DOM已更新
+    setTimeout(updateCursorPosition, 0);
+  };
+
+  // 处理鼠标点击或键盘导航
+  const handleSelectionChange = () => {
+    updateCursorPosition();
+  };
 
   // 确保滚动到最新的小票
   useEffect(() => {
@@ -165,6 +228,20 @@ export default function ReceiptPrinter() {
       }
     }
   }, [])
+
+  // 组件挂载和输入文本变化时更新光标位置
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.addEventListener('click', handleSelectionChange);
+      textarea.addEventListener('keyup', handleSelectionChange);
+      
+      return () => {
+        textarea.removeEventListener('click', handleSelectionChange);
+        textarea.removeEventListener('keyup', handleSelectionChange);
+      };
+    }
+  }, []);
 
   // 获取小票的CSS类名
   const getReceiptClassName = (status: Receipt['status']) => {
@@ -314,24 +391,36 @@ export default function ReceiptPrinter() {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)] pointer-events-none"></div>
               </div>
               
-              {/* 输入框 */}
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="在此输入文本，按回车键打印..."
-                className="w-full h-20 p-3 bg-[#efefef] placeholder:text-gray-500 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner"
-                style={{
-                  caretColor: "#333",
-                  letterSpacing: "0.5px"
-                }}
-                disabled={isPrinting}
-              />
-            
-              {/* 闪烁的光标提示（仅在未输入且未禁用时显示） */}
-              {!inputText && !isPrinting && (
-                <div className="absolute left-3 top-3 w-2 h-4 bg-gray-700 opacity-70 animate-[blink_1s_step-end_infinite]"></div>
-              )}
+              {/* 输入框容器 */}
+              <div className="relative">
+                {/* 输入框 */}
+                <textarea
+                  ref={textareaRef}
+                  value={inputText}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onClick={handleSelectionChange}
+                  placeholder="在此输入文本，按回车键打印..."
+                  className="w-full h-20 p-3 bg-[#efefef] placeholder:text-gray-500 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner"
+                  style={{
+                    caretColor: "transparent", // 隐藏原生光标
+                    letterSpacing: "0.5px"
+                  }}
+                  disabled={isPrinting}
+                />
+                
+                {/* 自定义闪烁光标 */}
+                {!isPrinting && (
+                  <div 
+                    className="absolute w-[2px] h-4 bg-gray-800 opacity-70 animate-[blink_1s_step-end_infinite] pointer-events-none"
+                    style={{
+                      top: `${cursorPosition.top}px`,
+                      left: `${cursorPosition.left}px`,
+                      transition: "left 0.05s ease-out, top 0.05s ease-out"
+                    }}
+                  />
+                )}
+              </div>
               
               {/* 输入框底部控制按钮装饰 */}
               <div className="flex justify-between items-center mt-1 px-1">
@@ -340,7 +429,9 @@ export default function ReceiptPrinter() {
                     <div key={i} className="w-2 h-2 bg-gray-500 rounded-full"></div>
                   ))}
                 </div>
-                <div className="text-[10px] font-mono text-gray-500 tracking-tighter">READY</div>
+                <div className="text-[10px] font-mono text-gray-500 tracking-tighter">
+                  {isPrinting ? "PRINTING..." : "READY"}
+                </div>
               </div>
             </div>
           </div>
