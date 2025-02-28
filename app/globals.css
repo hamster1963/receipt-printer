@@ -135,7 +135,25 @@
 /* 确保所有文本居中 */
 textarea::placeholder {
   text-align: center;
-  line-height: 40px;
+  vertical-align: middle;
+  padding-top: 0px;
+  line-height: normal;
+  color: #6b7280;
+  opacity: 0.7;
+}
+
+/* 修复Firefox中placeholder和光标位置可能不一致问题 */
+@-moz-document url-prefix() {
+  textarea {
+    text-align: center !important;
+  }
+}
+
+/* 修复Edge和Chrome中可能的对齐问题 */
+@supports (-ms-ime-align:auto) {
+  textarea::placeholder {
+    padding-top: 10px;
+  }
 }
 
 .receipt-printing p, 

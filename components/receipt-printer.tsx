@@ -364,9 +364,11 @@ export default function ReceiptPrinter() {
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="在此输入文本，按回车键打印..."
-                  className="w-full h-20 p-3 bg-[#efefef] placeholder:text-gray-500 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner text-center"
+                  className="w-full h-20 bg-[#efefef] placeholder:text-gray-500 placeholder:opacity-70 rounded-sm focus:outline-none focus:ring-0 border-none resize-none font-mono text-gray-800 text-sm relative z-0 shadow-inner"
                   style={{
-                    letterSpacing: "0.5px"
+                    letterSpacing: "0.5px",
+                    textAlign: "center",
+                    paddingTop: "12px",
                   }}
                   disabled={isPrinting}
                 />
